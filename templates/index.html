@@ -1,0 +1,106 @@
+<!-- templates/index.html -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Omok Simulator</title>
+</head>
+<body>
+    <canvas id="omokCanvas" width="600" height="600" onclick="makeUserMove(event)"></canvas>
+    <!-- 결과를 표시할 div 추가 -->
+    <div id="gameResult"></div>
+    <script>
+const canvas = document.getElementById('omokCanvas');
+const ctx = canvas.getContext('2d');
+let gameInProgress = true;
+
+function drawBoard(board) {
+    // Get the actual size of the canvas
+    const rect = canvas.getBoundingClientRect();
+    const canvasWidth = rect.width;
+    const canvasHeight = rect.height;
+
+    ctx.clearRect(0, 0, canvasWidth, canvasHeight);
+
+    for (let i = 0; i < board.length; i++) {
+        for (let j = 0; j < board[i].length; j++) {
+            const x = j * (canvasWidth / board[i].length);
+            const y = i * (canvasHeight / board.length);
+
+            ctx.beginPath();
+            ctx.rect(x, y, canvasWidth / board[i].length, canvasHeight / board.length);
+            ctx.stroke();
+
+            if (board[i][j] !== 0) {
+                ctx.beginPath();
+                ctx.arc(x + (canvasWidth / (board[i].length * 2)), y + (canvasHeight / (board.length * 2)), (canvasWidth / board[i].length) / 2 - 2, 0, Math.PI * 2);
+                ctx.fillStyle = board[i][j] === 1 ? 'black' : 'white';
+                ctx.fill();
+                ctx.stroke();
+            }
+        }
+    }
+}
+
+function updateGameResult(status, winner) {
+    const gameResultDiv = document.getElementById('gameResult');
+
+    switch (status) {
+        case 'win':
+            gameResultDiv.textContent = `Player ${winner} wins!`;
+            break;
+        case 'draw':
+            gameResultDiv.textContent = 'It\'s a draw!';
+            break;
+        default:
+            gameResultDiv.textContent = '';
+    }
+}
+
+
+function makeUserMove(event) {
+    if (!gameInProgress) return;
+
+    const rect = canvas.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+
+    const row = Math.floor(y / 40);
+    const col = Math.floor(x / 40);
+
+    fetch(`/make_move/${row}/${col}`, { method: 'POST' })
+        .then(response => response.json())
+        .then(data => {
+            console.log(data); // 디버깅용 콘솔 출력
+            if (data.status === 'success' || data.status === 'win') {
+                drawBoard(data.board);
+            } else if (data.status === 'game_over') {
+                alert('Game Over!');
+                gameInProgress = false;
+            }
+        });
+}
+        function playModelMove() {
+            if (!gameInProgress) return;
+
+            fetch('/make_move/0/0', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    drawBoard(data.board);
+                    if (data.status === 'win') {
+                        playModelMove();
+                        alert(`Player ${data.winner} wins!`);
+                        gameInProgress = false;
+                    } else {
+                        playModelMove();
+                    }
+                });
+        }
+
+        drawBoard([]);
+        playModelMove();
+    </script>
+</body>
+</html>
